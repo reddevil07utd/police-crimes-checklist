@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>SGT Car Dealers — v24 (fix: buttons + live condition)</title>
+<style>
+  :root{
+    --bg:#1b1e23; --panel:#20242b; --panel-2:#242932; --line:#2f3541; --line-soft:#353c48; --text:#e9edf2; --muted:#a7b0bd;
+    --green:#2dbf61; --orange:#f5b025; --red:#e74c3c; --red-deep:#b00020;
+    --blue:#0aa2ff; --blue-2:#007bff; --blue-3:#7bc3ff; --shadow:0 10px 24px rgba(0,0,0,.35);
+    --h:30px;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;background:linear-gradient(160deg,#171a1e 0%,#1b1e23 40%,#121418 100%);color:var(--text);font:14px/1.4 Inter,system-ui,Segoe UI,Roboto}
+  .shell{max-width:1200px;margin:18px auto;padding:0 16px}
+  .top{background:#0f1319;border-bottom:1px solid #0b0e12;box-shadow:var(--shadow);position:sticky;top:0;z-index:10}
+  .top__in{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:12px 16px;max-width:1200px;margin:auto}
+  .brand{display:flex;gap:10px;align-items:center}
+  .brand h1{margin:0;font-size:16px;letter-spacing:.2px}
+  .controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .sel,.btn,.ipt{border-radius:8px;border:1px solid #2b3240;background:#0f1319;color:var(--text);height:var(--h)}
+  .sel,.ipt{padding:0 10px}
+  .btn{padding:0 12px;background:var(--blue-2);border-color:#0b2a5a;cursor:pointer;transition:transform .08s,box-shadow .2s,background .2s}
+  .btn:hover{transform:translateY(-1px);box-shadow:0 6px 16px rgba(0,0,0,.35);background:#0a67de}
+  .btn--danger{background:#3a1111;border-color:#5a1b1b}
+  .btn--danger:hover{background:#551919}
+  .sep{width:1px;height:26px;background:#2b3240;margin:0 6px}
+  .tabs{display:flex;gap:10px;align-items:center;margin:16px 0 10px}
+  .tab{padding:8px 14px;border-radius:10px;border:1px solid #3a3f4b;background:#1d222b;color:#dfe6f3;cursor:pointer;user-select:none;height:var(--h);display:flex;align-items:center}
+  .tab--active{background:linear-gradient(#f6c782,#f0b253);border-color:#6b4f1f;color:#1a1a1a;font-weight:800;box-shadow:inset 0 -2px 0 rgba(0,0,0,.15)}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);overflow:hidden}
+  .panel__head{padding:10px 14px;background:#161a20;border-bottom:1px solid var(--line-soft);font-weight:700;letter-spacing:.2px;display:flex;align-items:center;justify-content:space-between}
+  .panel__body{padding:14px}
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .preview{position:relative;height:260px;background:radial-gradient(ellipse at center,#222 0%,#1a1d22 65%);border:1px dashed #2f3541;border-radius:10px;display:flex;align-items:center;justify-content:center;color:#8590a3;overflow:hidden}
+  .preview img{max-width:100%;max-height:100%;object-fit:contain;display:block}
+  .preview .overlay{position:absolute;right:10px;bottom:10px;display:flex;gap:8px;background:rgba(16,20,26,.6);padding:6px;border-radius:8px;border:1px solid #2b3240}
+  .details-grid{display:grid;grid-template-columns:160px 1fr;gap:8px 12px}
+  .label{align-self:center;color:#a7b0bd;line-height:var(--h)}
+  .fuel-row{display:flex;align-items:center;gap:10px}
+  .fuel-slider{-webkit-appearance:none;width:220px;height:10px;border-radius:6px;background:#2a313e;outline:none}
+  .fuel-slider::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:#fff;border:2px solid var(--blue);margin-top:-4px;cursor:pointer}
+  .muted{color:#9aa6b8}
+
+  /* Condition — default 1 column; compact -> 2 columns */
+  .cond-wrap{display:grid;grid-template-columns:1fr;gap:12px}
+  body.compact .cond-wrap{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+  .cond-col{display:flex;flex-direction:column;gap:12px;min-width:0}
+  .cat{background:var(--panel-2);border:1px solid var(--line);border-radius:10px}
+  .cat__head{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid var(--line-soft)}
+  .cat__title{display:flex;align-items:center;gap:8px}
+  .cat__title .cat-title{height:var(--h);border-radius:8px;border:1px solid #2b3240;background:#151a22;color:#cfd6e2;padding:0 10px;min-width:160px;max-width:280px}
+  .cat__body{padding:10px}
+
+  .small{padding:0 10px;border-radius:8px;border:1px solid #2b3240;background:#151a22;color:#cfd6e2;cursor:pointer;height:var(--h);display:flex;align-items:center}
+  .small:hover{background:#1a202a}
+  .toggle{min-width:74px;justify-content:center;font-size:12px;padding:0 6px}
+  .toggle.on{border-color:#25472a;background:#15241a;color:#b9f3c7}
+  .toggle.off{border-color:#5a1b1b;background:#2a1515;color:#f7b2b2}
+  .icon-btn{width:26px;height:26px;padding:0;display:flex;align-items:center;justify-content:center;border-radius:7px;font-weight:900;line-height:1}
+
+  .part-row{
+    display:grid;
+    grid-template-columns:minmax(220px,1.1fr) minmax(220px,1.6fr) minmax(100px,.7fr) minmax(74px,.45fr) 30px;
+    gap:8px; align-items:center; margin:8px 0; min-width:0;
+  }
+  body.compact .part-row{
+    grid-template-columns:minmax(200px,1fr) minmax(200px,1.3fr) minmax(90px,.6fr) minmax(74px,.45fr) 30px;
+  }
+  .part-row>*{min-width:0}
+  .barbox{position:relative;height:22px;background:#0f1217;border:1px solid #2c3440;border-radius:7px;overflow:hidden}
+  .bar{position:absolute;left:0;top:0;height:100%;width:0%;transition:width .12s linear, background-color .12s}
+  .bar-label{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;color:#fff;text-shadow:0 1px 0 rgba(0,0,0,.4);pointer-events:none}
+
+  .slider{-webkit-appearance:none;width:100%;height:10px;border-radius:6px;background:#2a313e;outline:none;cursor:pointer;border:1px solid #3a4352}
+  .slider::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:#fff;border:2px solid #666;margin-top:-4px}
+
+  /* Vehicle condition badge */
+  .cond-badge{display:inline-flex;align-items:center;gap:8px;background:#12161c;border:1px solid #2b3240;border-radius:999px;padding:4px 10px;font-weight:800}
+  .cond-dot{width:8px;height:8px;border-radius:50%}
+
+  .finance-grid{display:grid;grid-template-columns:220px 1fr 220px 1fr;gap:10px 14px}
+  .line{display:flex;align-items:center;justify-content:space-between;background:#1a1f26;border:1px dashed #323a47;border-radius:10px;padding:8px 10px}
+  .profit{font-weight:800}
+  .profit.pos{color:var(--green)} .profit.neg{color:var(--red)} .profit.na{color:#8b96a8}
+  .budget-actions{display:flex;gap:8px;justify-content:flex-end;margin:6px 0 10px}
+  .budget-grid{display:grid;grid-template-columns:260px 1fr;gap:10px 14px;margin-top:6px}
+  .stat{display:flex;align-items:center;justify-content:space-between;background:#1a1f26;border:1px dashed #323a47;border-radius:10px;padding:8px 10px}
+  .log-actions{display:flex;gap:8px;justify-content:flex-end;margin-bottom:8px}
+  .logtbl{width:100%;border-collapse:separate;border-spacing:0;overflow:hidden;border-radius:10px;border:1px solid var(--line)}
+  .logtbl thead th{background:#161a20;color:#cfd6e2;text-align:left;font-weight:700;padding:10px;border-bottom:1px solid var(--line-soft)}
+  .logtbl td{padding:10px;border-bottom:1px solid var(--line-soft)}
+  .type-pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;border:1px solid #2b3240}
+  .type-fuel{background:#102032;color:#7bc3ff;border-color:#193450}
+  .type-parts{background:#281322;color:#f6a2b0;border-color:#4a243c}
+  .type-upg{background:#1d2b14;color:#b8f59c;border-color:#2e4a1f}
+  .right{display:flex;justify-content:flex-end}
+  .amt{font-weight:800}
+</style>
+</head>
+<body>
+  <div class="top">
+    <div class="top__in">
+      <div class="brand">
+        <h1>SGT Car Dealers</h1>
+        <span class="muted" id="count">0 cars</span>
+      </div>
+      <div class="controls">
+        <select id="carSelect" class="sel"></select>
+        <button id="addCar" class="btn">+ Add Car</button>
+        <button id="delCar" class="btn btn--danger">Delete Car</button>
+        <span class="sep"></span>
+        <label class="muted">Currency</label>
+        <select id="currency" class="sel">
+          <option value="USD">$ USD</option>
+          <option value="EUR">€ EUR</option>
+          <option value="GBP">£ GBP</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="shell">
+    <div class="tabs">
+      <div class="tab tab--active" data-tab="scan">Scan Report</div>
+      <div class="tab" data-tab="summary">Summary</div>
+    </div>
+
+    <!-- SCAN REPORT -->
+    <section id="scan" class="panel">
+      <div class="panel__head"><span>Car preview</span></div>
+      <div class="panel__body">
+        <div class="grid-2">
+          <div class="preview" id="previewBox">Drop image or use Upload</div>
+          <div>
+            <div class="panel__head" style="border-radius:10px 10px 0 0;margin-bottom:0;">Car details</div>
+            <div class="panel__body" style="background:#1a1f26;border:1px solid var(--line-soft);border-top:0;border-radius:0 0 10px 10px;">
+              <div id="details" class="details-grid"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel__head" style="margin-top:8px;">
+          <span>Car condition</span>
+          <div style="display:flex;gap:8px;align-items:center">
+            <span id="vehCondBadge" class="cond-badge"><span class="cond-dot" style="background:#555"></span><span id="vehCondText">—</span></span>
+            <button id="toggleLayout" class="small">Compact View</button>
+            <button id="addCategoryGlobal" class="small">+ Add Category</button>
+          </div>
+        </div>
+        <div class="panel__body">
+          <div class="cond-wrap" id="conditions"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SUMMARY -->
+    <section id="summary" class="panel" style="display:none">
+      <div class="panel__head">Finance</div>
+      <div class="panel__body">
+        <div id="financeInputs" class="finance-grid"></div>
+        <div id="financeLines" style="margin-top:10px"></div>
+
+        <div class="panel__head" style="margin:14px -14px 10px -14px;border-radius:0;">Budget & Totals</div>
+        <div class="panel__body" style="padding-top:6px">
+          <div class="budget-actions">
+            <button id="resetFinances" class="small btn--danger">Reset All Finances</button>
+          </div>
+          <div class="budget-grid">
+            <div class="label">Opening Balance</div>
+            <div><input id="openingBalance" class="ipt" placeholder="$0"/></div>
+
+            <div class="label">Fuel Spend — press Enter to add</div>
+            <div><input id="fuelSpend" class="ipt" placeholder="$0"/></div>
+
+            <div class="label">Parts Spend — press Enter to add</div>
+            <div><input id="partsSpend" class="ipt" placeholder="$0"/></div>
+
+            <div class="label">Upgrade Spend — press Enter to add</div>
+            <div><input id="upgradeSpend" class="ipt" placeholder="$0"/></div>
+
+            <div class="stat"><span>Total Purchases</span><strong id="totPurchases">$0</strong></div>
+            <div class="stat"><span>Total Sales</span><strong id="totSales">$0</strong></div>
+            <div class="stat"><span>Net Cash Flow (Sales − Purchases)</span><strong id="netCash">$0</strong></div>
+            <div class="stat"><span>Realized Profit (sold cars)</span><strong id="realProfit">$0</strong></div>
+            <div class="stat"><span>Total Expenses (Fuel + Parts + Upgrades)</span><strong id="totExpenses">$0</strong></div>
+            <div class="stat"><span>Current Balance</span><strong id="currBalance">$0</strong></div>
+          </div>
+
+          <div class="panel__head" style="margin:14px -14px 10px -14px;border-radius:0;">Expense Log</div>
+          <div class="panel__body" style="padding-top:6px">
+            <div class="log-actions">
+              <button id="clearLog" class="small btn--danger">Clear Log</button>
+            </div>
+            <div id="expenseLog"></div>
+          </div>
+
+          <div class="panel__head" style="margin:14px -14px 10px -14px;border-radius:0;">Transaction Ledger (Purchases & Sales)</div>
+          <div class="panel__body" style="padding-top:6px">
+            <div class="log-actions">
+              <button id="clearLedger" class="small btn--danger">Clear Ledger</button>
+            </div>
+            <div id="txnLedger"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+<script>
+/* ===== Storage keys ===== */
+const LS='garage_scan_v10';
+const BANK='wordbank_v1';
+const CURR='currency_v1';
+const BAL='garage_balance_v1';
+const EXP='garage_expense_log_v2';
+const TXN='garage_txn_ledger_v1';
+
+/* ===== Currency & helpers ===== */
+const CURRENCIES={USD:'$',EUR:'€',GBP:'£'};
+const getSym=()=>CURRENCIES[(localStorage.getItem(CURR)||'USD')]||'$';
+const setCurr=c=>localStorage.setItem(CURR,c);
+
+const ts=()=>new Date().toISOString();
+const money=v=> v==null?'':(getSym()+Number(v).toLocaleString());
+const num=v=>{if(v==null)return null; const x=String(v).replace(/[^0-9.\-]/g,''); return x?Number(x):null}
+const int=v=>{const n=num(v); return n==null?0:Math.max(0,Math.round(n))}
+const clamp=(n,a=0,b=100)=>Math.max(a,Math.min(b,n));
+
+/* ===== Data access ===== */
+const getGarage=()=>{try{return JSON.parse(localStorage.getItem(LS)||'[]')}catch(e){return[]}};
+const saveGarage=cars=>{localStorage.setItem(LS,JSON.stringify(cars)); refreshHeader();};
+
+const getBank=()=>{try{return JSON.parse(localStorage.getItem(BANK)||'{}')}catch(e){return{}}};
+const saveBank=b=>localStorage.setItem(BANK,JSON.stringify(b));
+
+const getOpeningBalance=()=>Number(localStorage.getItem(BAL)||0)||0;
+const setOpeningBalance=v=>localStorage.setItem(BAL,String(Number(v)||0));
+
+const getLog=()=>{try{return JSON.parse(localStorage.getItem(EXP)||'[]')}catch(e){return[]}};
+const saveLog=a=>localStorage.setItem(EXP,JSON.stringify(a));
+const sumByType=(t,a)=> (a||getLog()).reduce((s,e)=> s+(e.type===t?(Number(e.amount)||0):0),0);
+
+const getLedger=()=>{try{return JSON.parse(localStorage.getItem(TXN)||'[]')}catch(e){return[]}};
+const saveLedger=arr=>localStorage.setItem(TXN,JSON.stringify(arr));
+
+/* ===== Autosuggest ===== */
+function attachMemory(input,key){
+  const bank=getBank(); if(!bank[key]) bank[key]=[];
+  const id='dl-'+key; let dl=document.getElementById(id); if(!dl){dl=document.createElement('datalist');dl.id=id;document.body.appendChild(dl)}
+  input.setAttribute('list',id);
+  const paint=()=>{dl.innerHTML=''; bank[key].forEach(v=>{const o=document.createElement('option');o.value=v;dl.appendChild(o)})};
+  const store=val=>{val=(val||'').trim(); if(val.length<2) return; if(!bank[key].some(w=>w.toLowerCase()==val.toLowerCase())){bank[key].unshift(val);bank[key]=bank[key].slice(0,300);saveBank(bank);paint()}};
+  let t=null;
+  input.addEventListener('input',()=>{clearTimeout(t); const v=input.value; if((v||'').trim().length>=2){ t=setTimeout(()=>store(v),400) }});
+  input.addEventListener('keydown',e=>{ if(e.key==='Enter') store(input.value) });
+  input.addEventListener('change',()=>store(input.value));
+  input.addEventListener('blur', ()=>store(input.value));
+  paint();
+}
+function rememberWordsFromCar(car){
+  const bank=getBank();
+  const push=(k,v)=>{if(!v) return; if(!bank[k]) bank[k]=[]; const s=v.toString().trim(); if(!s) return;
+    if(!bank[k].some(x=>x.toLowerCase()==s.toLowerCase())) bank[k].unshift(s);
+  };
+  push('brand',car.brand); push('model',car.model); push('body',car.body); push('color',car.color);
+  saveBank(bank);
+}
+
+/* ===== Bars + Sliders ===== */
+function barColor(v){if(v===0)return'var(--red)'; if(v<=50)return'var(--red)'; if(v<=75)return'var(--orange)'; return'var(--green)'}
+function coerceVal(raw){ if(raw===-1||raw==='-1')return-1; const n=parseInt(raw,10); return Number.isFinite(n)?Math.max(0,Math.min(100,n)):0 }
+function updateBar(barEl,raw,labelEl){
+  const val=coerceVal(raw);
+  if(val===-1){barEl.style.width='100%';barEl.style.background='var(--red-deep)'; if(labelEl)labelEl.textContent='Not Installed'; return}
+  if(val===0){ barEl.style.width='100%'; barEl.style.background='var(--red)'; if(labelEl)labelEl.textContent='0%'; return}
+  barEl.style.width=val+'%'; barEl.style.background=barColor(val); if(labelEl)labelEl.textContent=val+'%';
+}
+function tintSlider(slider,raw){
+  const v=coerceVal(raw);
+  if(v===-1){slider.style.background='linear-gradient(90deg,var(--red-deep) 0%,var(--red-deep) 100%)';slider.style.borderColor='var(--red-deep)';return}
+  if(v===0){ slider.style.background='linear-gradient(90deg,var(--red) 0%,var(--red) 100%)'; slider.style.borderColor='var(--red)'; return}
+  const col=barColor(v); slider.style.background=`linear-gradient(90deg, ${col} ${v}%, #2a313e ${v}%)`; slider.style.borderColor=col;
+}
+function paintFuelSlider(slider,val,max){const p=clamp((val/max)*100,0,100); slider.style.background=`linear-gradient(90deg,var(--blue-3) 0%,var(--blue) ${p}%, #2a313e ${p}%)`}
+
+/* ===== Image preview ===== */
+function resizeDataUrl(dataUrl,maxW=1280,maxH=800,quality=.82){
+  return new Promise(res=>{const img=new Image(); img.onload=()=>{const r=Math.min(maxW/img.width,maxH/img.height,1); const cw=Math.round(img.width*r), ch=Math.round(img.height*r); const c=document.createElement('canvas'); c.width=cw;c.height=ch; c.getContext('2d').drawImage(img,0,0,cw,ch); res(c.toDataURL('image/jpeg',quality))}; img.src=dataUrl});
+}
+function makePreview(el,car,touch,rerender){
+  el.innerHTML=''; if(car.imageData){const img=new Image();img.src=car.imageData;img.alt='Car preview';el.appendChild(img)} else el.textContent='Drop image or use Upload';
+  let file=el.querySelector('input[type=file]'); if(!file){file=document.createElement('input');file.type='file';file.accept='image/*';file.style.display='none';el.appendChild(file)}
+  const overlay=document.createElement('div'); overlay.className='overlay';
+  const up=document.createElement('button'); up.className='small'; up.textContent='Upload Image';
+  const clr=document.createElement('button'); clr.className='small'; clr.textContent='Clear'; clr.disabled=!car.imageData;
+  overlay.appendChild(up); overlay.appendChild(clr); el.appendChild(overlay);
+  function handle(f){ if(!f||!f.type.startsWith('image/'))return; const r=new FileReader(); r.onload=async e=>{car.imageData=await resizeDataUrl(e.target.result); touch(); rerender()}; r.readAsDataURL(f)}
+  up.addEventListener('click',()=>file.click()); file.addEventListener('change',()=>handle(file.files[0]));
+  clr.addEventListener('click',()=>{car.imageData=null; touch(); rerender()});
+  el.addEventListener('dragover',e=>{e.preventDefault(); el.style.outline='2px dashed #4b9cff'}); el.addEventListener('dragleave',()=>{el.style.outline=''}); el.addEventListener('drop',e=>{e.preventDefault(); el.style.outline=''; handle(e.dataTransfer.files[0])});
+}
+
+/* ===== Finance helpers ===== */
+function lineEl(label,text,cls){const d=document.createElement('div');d.className='line';const a=document.createElement('div');a.textContent=label;const b=document.createElement('div');b.className='profit '+(cls||'');b.textContent=text;d.appendChild(a);d.appendChild(b);return d}
+function calcDiscount(m,p){if(p==null)return{txt:'Not Purchased Yet',cls:'na'}; if(m==null)return{txt:'No Market Value',cls:'na'}; const v=m-p, pr=(v/m)*100; return{txt:`${money(v)} (${pr.toFixed(1)}%)`,cls:v>=0?'pos':'neg'}}
+function calcPotential(r,p){if(p==null)return{txt:'Not Purchased Yet',cls:'na'}; if(r==null)return{txt:'Not Repaired Yet',cls:'na'}; const v=r-p, pr=p>0?(v/p)*100:null; return{txt:`${money(v)} (${p>0?pr.toFixed(1)+'%':'—'})`,cls:v>=0?'pos':'neg'}}
+function calcSold(s,p){if(p==null)return{txt:'Not Purchased Yet',cls:'na'}; if(s==null)return{txt:'Not Sold Yet',cls:'na'}; const v=s-p, pr=p>0?(v/p)*100:null; return{txt:`${money(v)} (${p>0?pr.toFixed(1)+'%':'—'})`,cls:v>=0?'pos':'neg'}}
+
+/* ===== DOM refs ===== */
+const carSel=document.getElementById('carSelect'),
+      currencySel=document.getElementById('currency'),
+      countEl=document.getElementById('count');
+const previewBox=document.getElementById('previewBox'),
+      detailsEl=document.getElementById('details'),
+      condEl=document.getElementById('conditions');
+const finInputsEl=document.getElementById('financeInputs'),
+      finLinesEl=document.getElementById('financeLines'),
+      addCategoryGlobalBtn=document.getElementById('addCategoryGlobal');
+const openingInputEl=document.getElementById('openingBalance'),
+      fuelSpendEl=document.getElementById('fuelSpend'),
+      partsSpendEl=document.getElementById('partsSpend'),
+      upgradeSpendEl=document.getElementById('upgradeSpend');
+const totPurchasesEl=document.getElementById('totPurchases'),
+      totSalesEl=document.getElementById('totSales'),
+      netCashEl=document.getElementById('netCash'),
+      realProfitEl=document.getElementById('realProfit');
+const totExpensesEl=document.getElementById('totExpenses'),
+      currBalanceEl=document.getElementById('currBalance'),
+      expenseLogEl=document.getElementById('expenseLog');
+const clearLogBtn=document.getElementById('clearLog'),
+      resetFinBtn=document.getElementById('resetFinances');
+const toggleLayoutBtn=document.getElementById('toggleLayout'),
+      clearLedgerBtn=document.getElementById('clearLedger'),
+      txnLedgerEl=document.getElementById('txnLedger');
+const vehCondText=document.getElementById('vehCondText'),
+      vehCondBadge=document.getElementById('vehCondBadge'),
+      vehCondDot=vehCondBadge.querySelector('.cond-dot');
+
+/* ===== Header helpers ===== */
+function refreshHeader(){
+  const cars=getGarage(); const prev=carSel.value;
+  countEl.textContent=`${cars.length} ${cars.length===1?'car':'cars'}`;
+  carSel.innerHTML='';
+  cars.forEach(c=>{const o=document.createElement('option');o.value=String(c.id);o.textContent=`${c.brand||'—'} ${c.model||''} ${c.year?`(${c.year})`:''}`.trim();carSel.appendChild(o)});
+  if(cars.some(c=>String(c.id)===String(prev)))carSel.value=String(prev); else if(cars.length)carSel.value=String(cars[0].id);
+}
+function currentCar(){const id=carSel.value; const cars=getGarage(); return {cars, idx:Math.max(0,cars.findIndex(c=>String(c.id)===String(id||(cars[0]&&cars[0].id))))}}
+
+/* ===== Defaults ===== */
+const DEFAULT_CATEGORIES=[
+  {name:'Brake',items:[
+    {name:'Brake Disc Left Front',type:'percentage'},{name:'Brake Disc Left Rear',type:'percentage'},
+    {name:'Brake Disc Right Front',type:'percentage'},{name:'Brake Disc Right Rear',type:'percentage'},
+    {name:'Brake Caliper Left Front',type:'percentage'},{name:'Brake Caliper Left Rear',type:'percentage'},
+    {name:'Brake Caliper Right Front',type:'percentage'},{name:'Brake Caliper Right Rear',type:'percentage'}
+  ]},
+  {name:'Suspension',items:[
+    {name:'Shock Absorber Right Rear',type:'percentage'},{name:'Shock Absorber Right Front',type:'percentage'},
+    {name:'Shock Absorber Left Rear',type:'percentage'},{name:'Shock Absorber Left Front',type:'percentage'},
+    {name:'Suspension Pin Right Front',type:'percentage'},{name:'Suspension Pin Left Front',type:'percentage'}
+  ]},
+  {name:'Electric Parts',items:[{name:'Battery',type:'percentage'},{name:'Fuses',type:'percentage'}]},
+  {name:'Exhaust',items:[
+    {name:'Exhaust Manifold',type:'percentage'},{name:'Exhaust Catalytic Converter',type:'percentage'},
+    {name:'Exhaust Resonator',type:'percentage'},{name:'Exhaust Muffler',type:'percentage'},
+    {name:'Exhaust Tail Pipe',type:'percentage'},{name:'Exhaust Holes',type:'count'}
+  ]},
+  {name:'Other',items:[{name:'Engine',type:'percentage'},{name:'Radiator',type:'percentage'},{name:'Clutch',type:'percentage'}]},
+  {name:'Visual Condition',items:[{name:'Washed',type:'percentage'},{name:'Polished',type:'percentage'},{name:'Bodywork',type:'percentage'}]}
+];
+function cloneCategoriesForNewCar(src){const base=Array.isArray(src)&&src.length?src:DEFAULT_CATEGORIES; return base.map(cat=>({name:cat.name||'Category',items:(cat.items||[]).map(it=>{const isCount=(it.type==='count')||((cat.name||'').toLowerCase().includes('exhaust')&&(it.name||'').toLowerCase().includes('holes'));return isCount?{name:it.name||'Item',type:'count',value:0}:{name:it.name||'Item',type:'percentage',value:0,prevPct:0}})}))}
+
+/* ===== Expense Log ===== */
+function addExpenseEntry(type,amount){const log=getLog(); log.unshift({id:Date.now().toString(36)+Math.random().toString(36).slice(2),type,amount:Number(amount)||0,ts:new Date().toISOString()}); saveLog(log);}
+function deleteExpenseEntry(id){const log=getLog().filter(e=>e.id!==id); saveLog(log);}
+function formatDT(iso){const d=new Date(iso); return d.toLocaleString()}
+
+/* ===== Transaction Ledger ===== */
+function upsertTxn(type, car, amount){
+  const val=Number(amount)||0;
+  const id=`${type}:${car.id}`;
+  let ledger=getLedger();
+  const i=ledger.findIndex(e=>e.id===id);
+  if(val<=0){ if(i>-1){ ledger.splice(i,1); saveLedger(ledger); } return; }
+  const entry={ id, carId:car.id, type, amount:val, meta:{brand:car.brand||'',model:car.model||'',year:car.year||''}, ts:(i>-1&&ledger[i].ts)?ledger[i].ts:ts() };
+  if(i>-1) ledger[i]=entry; else ledger.unshift(entry);
+  saveLedger(ledger);
+}
+function processLedgerForCar(car){ upsertTxn('purchase',car,car.dealerPurchasePrice); upsertTxn('sale',car,car.dealerSellPrice); }
+
+/* ===== Vehicle condition ===== */
+function computeVehicleCondition(car){
+  if(!car||!Array.isArray(car.categories))return null;
+  let sum=0,cnt=0;
+  car.categories.forEach(cat=>{ (cat.items||[]).forEach(it=>{ if(it.type==='percentage'){ const v=(it.value===-1?0:(Number(it.value)||0)); sum+=v; cnt++; }})});
+  if(cnt===0)return null; return Math.round(sum/cnt);
+}
+function paintVehicleCondition(car){
+  const v=computeVehicleCondition(car);
+  if(v===null){ vehCondText.textContent='—'; vehCondDot.style.background='#555'; return; }
+  vehCondText.textContent=v+'%';
+  let col=(v===0)?'var(--red)':(v<=50?'var(--red)':(v<=75?'var(--orange)':'var(--green)'));
+  vehCondDot.style.background=col;
+}
+
+/* ===== Render ===== */
+function render(){
+  refreshHeader();
+  const {cars, idx}=currentCar();
+  if(!cars.length){
+    detailsEl.innerHTML='';condEl.innerHTML='';finInputsEl.innerHTML='';finLinesEl.innerHTML='';previewBox.innerHTML='Drop image or use Upload';
+    openingInputEl.value=getOpeningBalance();fuelSpendEl.value='';partsSpendEl.value='';upgradeSpendEl.value='';
+    paintBudget();paintExpenseLog();paintLedger();wireGlobals();vehCondText.textContent='—';vehCondDot.style.background='#555';
+    return;
+  }
+  const car=cars[idx];
+
+  const inpt=v=>{const i=document.createElement('input');i.className='ipt';if(v!=null)i.value=v;return i}
+  const select=(opts,val)=>{const s=document.createElement('select');s.className='sel';opts.forEach(o=>{const op=document.createElement('option');op.value=o;op.textContent=o;if(o===val)op.selected=true;s.appendChild(op)});return s}
+  const range=(min,max,step,val,cls)=>{const r=document.createElement('input');r.type='range';r.min=min;r.max=max;r.step=step;r.value=val;r.className=cls||'slider';return r}
+  const appendRow=(label,el,help)=>{const l=document.createElement('div');l.className='label';l.textContent=label;const r=document.createElement('div');r.appendChild(el);if(help){const s=document.createElement('div');s.className='muted';s.style.fontSize='12px';s.textContent=help;r.appendChild(s)};detailsEl.appendChild(l);detailsEl.appendChild(r)}
+  function touch(){car.modified=ts();cars[idx]=car;saveGarage(cars)}
+
+  makePreview(previewBox,car,touch,render);
+
+  /* Details + autosuggest */
+  detailsEl.innerHTML='';
+  const mk=inpt(car.brand); attachMemory(mk,'brand'); mk.addEventListener('input',()=>{car.brand=mk.value;touch();refreshHeader()});
+  const md=inpt(car.model); attachMemory(md,'model'); md.addEventListener('input',()=>{car.model=md.value;touch();refreshHeader()});
+  const bt=inpt(car.body ); attachMemory(bt,'body' ); bt.addEventListener('input',()=>{car.body =bt.value;touch()});
+  const col=inpt(car.color); attachMemory(col,'color'); col.addEventListener('input',()=>{car.color=col.value;touch()});
+
+  const yr=inpt(car.year);yr.type='number';yr.addEventListener('input',()=>{car.year=num(yr.value);touch()});
+  const seats=inpt(car.seats??5);seats.type='number';seats.addEventListener('input',()=>{car.seats=num(seats.value);touch()});
+  const ft=select(['Gasoline','Diesel','Electric','Hybrid'],car.fuelType||'Gasoline');ft.addEventListener('change',()=>{car.fuelType=ft.value;touch()});
+  const fuelRow=document.createElement('div');fuelRow.className='fuel-row';
+  const fuel=range(0,21,1,car.fuelGallons??11,'fuel-slider');const fuelTag=document.createElement('span');fuelTag.className='muted';fuelTag.textContent=`${fuel.value}/21 Gallons`;paintFuelSlider(fuel,fuel.value,21);
+  const ref=document.createElement('button');ref.className='small';ref.textContent='Refuel';
+  fuel.addEventListener('input',()=>{fuelTag.textContent=`${fuel.value}/21 Gallons`;paintFuelSlider(fuel,fuel.value,21);car.fuelGallons=Number(fuel.value);touch()});
+  ref.addEventListener('click',()=>{fuel.value=21;fuel.dispatchEvent(new Event('input'))});
+  fuelRow.appendChild(fuel);fuelRow.appendChild(fuelTag);fuelRow.appendChild(ref);
+  const fc=inpt(car.fuelConsumption||'');fc.addEventListener('input',()=>{car.fuelConsumption=fc.value;touch()});
+  const mil=inpt(car.mileage??0);mil.type='number';mil.min='0';mil.addEventListener('input',()=>{car.mileage=num(mil.value);touch()});
+  const gb=select(['Manual','Automatic'],car.gearbox||'Manual');gb.addEventListener('change',()=>{car.gearbox=gb.value;touch()});
+
+  appendRow('Brand',mk);appendRow('Model',md);appendRow('Body type',bt);appendRow('Production Year',yr);appendRow('Seats',seats);appendRow('Fuel type',ft);
+  appendRow('Fuel Tank',fuelRow,'max 21 Gallons');appendRow('Fuel Consumption',fc);appendRow('Color',col);appendRow('Mileage',mil);appendRow('Gearbox',gb);
+
+  /* Condition */
+  condEl.innerHTML=''; if(!Array.isArray(car.categories))car.categories=[];
+  const left=document.createElement('div');left.className='cond-col'; const right=document.createElement('div');right.className='cond-col';
+  condEl.appendChild(left);condEl.appendChild(right);
+  toggleLayoutBtn.onclick=()=>{ document.body.classList.toggle('compact'); };
+
+  addCategoryGlobalBtn.onclick=()=>{car.categories.push({name:'',items:[],__focus:true});touch();render()};
+
+  function partRow(car,cat,it,ii){
+    const isCount=(it.type==='count')||((cat.name||'').toLowerCase().includes('exhaust')&&(it.name||'').toLowerCase().includes('holes')); if(isCount) it.type='count';
+    const r=document.createElement('div'); r.className='part-row';
+    const name=inpt(it.name||''); name.title=it.name||''; name.addEventListener('input',()=>{it.name=name.value;name.title=name.value;touch()}); r.appendChild(name);
+
+    if(isCount){
+      const wrap=document.createElement('div'); const count=inpt(it.value??0); count.type='number'; count.min='0'; count.step='1'; count.style.width='110px';
+      const unit=document.createElement('span'); unit.className='muted'; unit.style.marginLeft='8px'; unit.textContent='holes';
+      count.addEventListener('input',()=>{it.value=int(count.value);touch(); paintVehicleCondition(car)}); wrap.appendChild(count); wrap.appendChild(unit); r.appendChild(wrap);
+      r.appendChild(document.createElement('div')).className='muted'; r.appendChild(document.createElement('div')).className='muted';
+      const del=document.createElement('button'); del.className='small icon-btn'; del.textContent='×'; del.addEventListener('click',()=>{cat.items.splice(ii,1);touch();render()}); r.appendChild(del);
+      return r;
+    }
+
+    const box=document.createElement('div'); box.className='barbox'; const bar=document.createElement('div'); bar.className='bar'; box.appendChild(bar);
+    const label=document.createElement('div'); label.className='bar-label'; box.appendChild(label); r.appendChild(box);
+
+    const s=document.createElement('input'); s.type='range'; s.min='-1'; s.max='100'; s.step='1';
+    const initVal=(it.value===undefined?0:((it.value===-1||it.value==='-1')?-1:Number(it.value)));
+    s.value=String(initVal); s.className='slider';
+    const tog=document.createElement('button'); tog.className='small toggle'; tog.textContent='Installed'; r.appendChild(s); r.appendChild(tog);
+    const del=document.createElement('button'); del.className='small icon-btn'; del.textContent='×';
+
+    if(typeof it.prevPct!=='number'||it.prevPct<0||it.prevPct>100){ it.prevPct=(initVal>=0&&initVal<=100)?initVal:0 }
+
+    function paintToggle(v){const ins=(v!==-1); tog.textContent=ins?'Installed':'Not Installed'; tog.classList.toggle('on',ins); tog.classList.toggle('off',!ins); s.disabled=!ins; s.style.opacity=ins?'1':'.5'}
+    function refresh(){let v=coerceVal(s.value); if(v>=0) it.prevPct=v; it.value=v; updateBar(bar,v,label); tintSlider(s,v); paintToggle(v); touch(); paintVehicleCondition(car);}
+    refresh(); s.addEventListener('input',refresh);
+    tog.addEventListener('click',()=>{if(coerceVal(it.value)===-1){s.value=String((typeof it.prevPct==='number'&&it.prevPct>=0&&it.prevPct<=100)?it.prevPct:0)}else{it.prevPct=(typeof it.value==='number'&&it.value>=0&&it.value<=100)?it.value:(typeof it.prevPct==='number'?it.prevPct:0); s.value=String(-1)}; refresh()});
+    del.addEventListener('click',()=>{cat.items.splice(ii,1);touch();render()}); r.appendChild(del);
+    return r;
+  }
+
+  car.categories.forEach((cat,i)=>{
+    const side=(document.body.classList.contains('compact')?(i%2===0?left:right):left);
+    const block=document.createElement('div');block.className='cat';
+    const head=document.createElement('div');head.className='cat__head';
+    const titleWrap=document.createElement('div');titleWrap.className='cat__title';
+    const titleInput=document.createElement('input');titleInput.className='cat-title';titleInput.placeholder='Category name';titleInput.value=cat.name||'';
+    titleInput.addEventListener('input',()=>{cat.name=titleInput.value;touch();refreshHeader()}); titleWrap.appendChild(titleInput);
+    const btns=document.createElement('div'); const addPart=document.createElement('button');addPart.className='small';addPart.textContent='+ Item';
+    const delCat=document.createElement('button');delCat.className='small icon-btn';delCat.textContent='×';
+    btns.appendChild(addPart);btns.appendChild(delCat); head.appendChild(titleWrap);head.appendChild(btns);
+    const body=document.createElement('div');body.className='cat__body';
+    if(!Array.isArray(cat.items))cat.items=[]; cat.items.forEach((it,ii)=> body.appendChild(partRow(car,cat,it,ii)));
+    addPart.addEventListener('click',()=>{cat.items.push({name:'New Part',value:0,type:'percentage',prevPct:0});touch();render()});
+    delCat.addEventListener('click',()=>{if(!confirm('Delete category?'))return;car.categories.splice(i,1);touch();render()});
+    block.appendChild(head);block.appendChild(body); side.appendChild(block);
+    if(cat.__focus){setTimeout(()=>{titleInput.focus();titleInput.select()},0); delete cat.__focus; touch();}
+  });
+
+  /* Finance inputs + lines */
+  finInputsEl.innerHTML=''; finLinesEl.innerHTML='';
+  const inMoney=(val,cb)=>{const x=inpt(val??''); x.placeholder=getSym()+'0'; x.addEventListener('input',()=>{cb(num(x.value)); paintBudget();}); return x};
+  const mkt=inMoney(car.marketValue,v=>{car.marketValue=v;touch();paintFinance()});
+  const buy=inMoney(car.dealerPurchasePrice,v=>{car.dealerPurchasePrice=v;touch();processLedgerForCar(car);paintFinance();paintLedger();});
+  const rep=inMoney(car.marketValueRepaired,v=>{car.marketValueRepaired=v;touch();paintFinance()});
+  const sell=inMoney(car.dealerSellPrice,v=>{car.dealerSellPrice=v;touch();processLedgerForCar(car);paintFinance();paintLedger();});
+  addFin('Market Value',mkt);addFin('Dealer Purchase Price',buy);addFin('Market Value (Repaired)',rep);addFin('Dealer Sell Price',sell); paintFinance();
+
+  // sync ledger + condition
+  processLedgerForCar(car); paintVehicleCondition(car);
+
+  // Globals
+  wireGlobals();
+  paintBudget();
+  paintExpenseLog();
+  paintLedger();
+
+  function addFin(label,inp){const a=document.createElement('div');a.className='label';a.textContent=label;finInputsEl.appendChild(a);const b=document.createElement('div');b.appendChild(inp);finInputsEl.appendChild(b)}
+  function paintFinance(){
+    finLinesEl.innerHTML='';
+    const disc=calcDiscount(car.marketValue,car.dealerPurchasePrice),
+          pot =calcPotential(car.marketValueRepaired,car.dealerPurchasePrice),
+          sol =calcSold(car.dealerSellPrice,car.dealerPurchasePrice);
+    finLinesEl.appendChild(lineEl('Dealer Discount vs Market',disc.txt,disc.cls));
+    finLinesEl.appendChild(lineEl('Potential Profit (Repaired)',pot.txt,pot.cls));
+    finLinesEl.appendChild(lineEl('Profit on Sale',sol.txt,sol.cls));
+  }
+}
+
+/* ===== Globals & logs ===== */
+function wireGlobals(){
+  openingInputEl.value=getOpeningBalance();
+  openingInputEl.oninput = ()=>{ setOpeningBalance(num(openingInputEl.value)||0); paintBudget(); };
+
+  fuelSpendEl.value=''; partsSpendEl.value=''; upgradeSpendEl.value='';
+  const addOnEnter=(el,type)=> el.onkeydown = e=>{ if(e.key==='Enter'){ const v=num(el.value)||0; if(v){ addExpenseEntry(type,v); el.value=''; paintBudget(); paintExpenseLog(); } } };
+  addOnEnter(fuelSpendEl,'fuel'); addOnEnter(partsSpendEl,'parts'); addOnEnter(upgradeSpendEl,'upgrade');
+
+  clearLogBtn.onclick = ()=>{ if(confirm('Clear the entire expense log?')){ saveLog([]); paintBudget(); paintExpenseLog(); } };
+  if(clearLedgerBtn){ clearLedgerBtn.onclick = ()=>{ if(confirm('Clear the purchase/sale ledger? (Does not delete cars)')){ saveLedger([]); paintBudget(); paintLedger(); } }; }
+  resetFinBtn.onclick = ()=>{ if(confirm('Reset ALL finances? (Opening balance, expense log, transaction ledger, and per-car price fields)')){ 
+    setOpeningBalance(0); openingInputEl.value='0';
+    saveLog([]); saveLedger([]);
+    let cs=getGarage().map(c=>({...c,marketValue:null,dealerPurchasePrice:null,marketValueRepaired:null,dealerSellPrice:null}));
+    saveGarage(cs); paintBudget(); paintExpenseLog(); paintLedger(); render();
+  }};
+
+  // currency (FIX: no duplicate const)
+  currencySel.value=localStorage.getItem(CURR)||'USD';
+  currencySel.onchange=()=>{ setCurr(currencySel.value); render(); };
+}
+
+/* ===== Budget & logs render ===== */
+function paintBudget(){
+  const ledger=getLedger();
+  let purchases=0, sales=0;
+  const buyMap=new Map(), sellMap=new Map();
+  ledger.forEach(e=>{
+    if(e.type==='purchase'){ purchases+=Number(e.amount)||0; buyMap.set(e.carId, Number(e.amount)||0); }
+    if(e.type==='sale'){ sales+=Number(e.amount)||0; sellMap.set(e.carId, Number(e.amount)||0); }
+  });
+  let realized=0; sellMap.forEach((sv,carId)=>{ realized += (sv - (buyMap.get(carId)||0)); });
+  const netCash=sales-purchases;
+
+  const log=getLog();
+  const fuel=sumByType('fuel',log), parts=sumByType('parts',log), upg=sumByType('upgrade',log);
+  const expenses=fuel+parts+upg;
+
+  const opening=getOpeningBalance();
+  const current=opening + netCash - expenses;
+
+  totPurchasesEl.textContent=money(purchases);
+  totSalesEl.textContent=money(sales);
+  netCashEl.textContent=(netCash>=0?'+':'')+money(netCash).replace(getSym(),'');
+  realProfitEl.textContent=(realized>=0?'+':'')+money(realized).replace(getSym(),'');
+  totExpensesEl.textContent='-'+money(expenses).replace(getSym(),'');
+  currBalanceEl.textContent=money(current);
+}
+
+function paintExpenseLog(){
+  const log=getLog();
+  if(!log.length){ expenseLogEl.innerHTML='<div class="muted">No expenses yet. Add amounts above and press Enter.</div>'; return; }
+  const tbl=document.createElement('table');tbl.className='logtbl';
+  tbl.innerHTML=`<thead><tr><th style="width:200px">Date</th><th>Type</th><th class="right">Amount</th><th style="width:44px"></th></tr></thead><tbody></tbody>`;
+  const tb=tbl.querySelector('tbody');
+  const typeLabel=t=>t==='fuel'?'Fuel':(t==='parts'?'Parts':'Upgrade');
+  const typeClass=t=>t==='fuel'?'type-fuel':(t==='parts'?'type-parts':'type-upg');
+  log.forEach(e=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML = `
+      <td>${formatDT(e.ts)}</td>
+      <td><span class="type-pill ${typeClass(e.type)}">${typeLabel(e.type)}</span></td>
+      <td class="right amt">-${money(Number(e.amount)||0).replace(getSym(),'')}</td>
+      <td></td>`;
+    const del=document.createElement('button'); del.className='small icon-btn'; del.textContent='×'; del.title='Remove';
+    del.onclick=()=>{ deleteExpenseEntry(e.id); paintBudget(); paintExpenseLog(); };
+    tr.lastElementChild.appendChild(del);
+    tb.appendChild(tr);
+  });
+  expenseLogEl.innerHTML=''; expenseLogEl.appendChild(tbl);
+}
+
+function paintLedger(){
+  const ledger=getLedger();
+  if(!ledger.length){ txnLedgerEl.innerHTML='<div class="muted">No purchases/sales in ledger yet. Enter a purchase/sale on any car to add.</div>'; return; }
+  const tbl=document.createElement('table'); tbl.className='logtbl';
+  tbl.innerHTML=`<thead>
+    <tr><th>Date</th><th>Car</th><th>Type</th><th class="right">Amount</th><th style="width:44px"></th></tr>
+  </thead><tbody></tbody>`;
+  const tb=tbl.querySelector('tbody');
+  ledger.forEach(e=>{
+    const carName=[e.meta?.brand,e.meta?.model,e.meta?.year?`(${e.meta.year})`:null].filter(Boolean).join(' ');
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${formatDT(e.ts)}</td>
+      <td>${carName||'—'}</td>
+      <td>${e.type==='purchase'?'Purchase':'Sale'}</td>
+      <td class="right amt">${e.type==='purchase'?'-':''}${money(Number(e.amount)||0).replace(getSym(),'')}</td>
+      <td></td>`;
+    const del=document.createElement('button'); del.className='small icon-btn'; del.textContent='×'; del.title='Remove from ledger';
+    del.onclick=()=>{ const list=getLedger().filter(x=>x.id!==e.id); saveLedger(list); paintBudget(); paintLedger(); };
+    tr.lastElementChild.appendChild(del);
+    tb.appendChild(tr);
+  });
+  txnLedgerEl.innerHTML=''; txnLedgerEl.appendChild(tbl);
+}
+
+/* ===== Tabs & header ===== */
+document.querySelectorAll('.tab').forEach(t=>{t.addEventListener('click',()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.remove('tab--active')); t.classList.add('tab--active'); const id=t.dataset.tab; document.getElementById('scan').style.display=id==='scan'?'block':'none'; document.getElementById('summary').style.display=id==='summary'?'block':'none';})});
+carSel.addEventListener('change',render);
+
+document.getElementById('addCar').addEventListener('click',()=>{
+  const {cars,idx}=currentCar();
+  if(cars[idx]) rememberWordsFromCar(cars[idx]);
+  const src=(cars&&cars[idx]&&Array.isArray(cars[idx].categories))?cars[idx].categories:DEFAULT_CATEGORIES;
+  const car={id:Date.now(),created:ts(),modified:ts(),brand:'New',model:'Vehicle',body:'',year:new Date().getFullYear(),seats:5,fuelType:'Gasoline',fuelGallons:0,fuelConsumption:'',color:'',mileage:0,gearbox:'Manual',
+    marketValue:null,dealerPurchasePrice:null,marketValueRepaired:null,dealerSellPrice:null,categories:cloneCategoriesForNewCar(src),imageData:null};
+  const list=getGarage(); list.push(car); saveGarage(list); carSel.value=String(car.id); render();
+});
+
+document.getElementById('delCar').addEventListener('click',()=>{
+  const {cars,idx}=currentCar(); if(!cars.length)return;
+  const car=cars[idx];
+  if(!confirm('Delete this car? (Purchases/Sales are kept in the ledger so totals remain correct)'))return;
+  processLedgerForCar(car); // persist latest amounts
+  cars.splice(idx,1); saveGarage(cars); render();
+});
+
+/* Currency (ensure single binding) */
+currencySel.value=localStorage.getItem(CURR)||'USD';
+currencySel.addEventListener('change',()=>{ setCurr(currencySel.value); render(); });
+
+/* ===== Seed ===== */
+(function seed(){
+  let cars=getGarage(); if(cars.length){refreshHeader(); return;}
+  const sample={id:Date.now(),created:ts(),modified:ts(),
+    brand:'NGD',model:'Pulse',body:'Hatchback',year:1996,seats:5,fuelType:'Gasoline',fuelGallons:7,fuelConsumption:'Low',color:'Orange',mileage:105530,gearbox:'Manual',
+    marketValue:5749,dealerPurchasePrice:4626,marketValueRepaired:null,dealerSellPrice:null,
+    categories:cloneCategoriesForNewCar(DEFAULT_CATEGORIES),
+    imageData:null};
+  saveGarage([sample]);
+})();
+refreshHeader(); render();
+</script>
+</body>
+</html>
